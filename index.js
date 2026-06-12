@@ -55,7 +55,66 @@ function generatePreviewNumber(state) {
 
   return `+1 ${area} ${mid} ${last}`;
 }
+function showNumbersPage(chatId, page = 0) {
+  const records = loadRecords();
 
+  const perPage = 3;
+  const start = page * perPage;
+  const end = start + perPage;
+
+  const pageRecords = records.slice(start, end);
+
+  let message = "📡 US VIRTUAL NUMBER POOLS\n\n";
+
+  pageRecords.forEach(r => {
+    const available = r.available - r.sold;
+
+    message +=
+`🆔 ID: ${r.id}
+🌎 State: ${r.state}
+📶 Type: ${r.type}
+🏢 Carrier: ${r.carrier}
+💰 Price: $${r.price}
+📦 Available: ${available}
+
+`;
+  });
+
+  const buttons = [];
+
+  pageRecords.forEach(r => {
+    buttons.push([
+      {
+        text: `🛒 Buy ${r.state}`,
+        callback_data: `buy_${r.id}`
+      }
+    ]);
+  });
+
+  const nav = [];
+
+  if (page > 0) {
+    nav.push({
+      text: "⬅️ Previous",
+      callback_data: `page_${page - 1}`
+    });
+  }
+
+  if (end < records.length) {
+    nav.push({
+      text: "➡️ Next",
+      callback_data: `page_${page + 1}`
+    });
+  }
+
+  if (nav.length) buttons.push(nav);
+
+  bot.sendMessage(chatId, message, {
+    reply_markup: {
+      inline_keyboard: buttons
+    }
+  });
+}
 /* ================= START ================= */
 
 bot.onText(/\/start/, (msg) => {
@@ -108,33 +167,7 @@ Contact admin for help.`);
 /* ================= LIST ================= */
 
 bot.onText(/\/numbers/, (msg) => {
-
-  const records = loadRecords();
-
-  let message = "📡 US VIRTUAL NUMBER POOLS\n\n";
-
-  records.forEach(r => {
-
-    const available = r.available - r.sold;
-
-    message +=
-`🆔 ID: ${r.id}
-🌎 State: ${r.state}
-📶 Type: ${r.type}
-🏢 Carrier: ${r.carrier}
-💰 Price: $${r.price}
-📦 Available: ${available}
-
-`;
-  });
-
-  bot.sendMessage(msg.chat.id, message, {
-    reply_markup: {
-      inline_keyboard: records.map(r => ([
-        { text: `🛒 Buy ${r.state}`, callback_data: `buy_${r.id}` }
-      ]))
-    }
-  });
+  showNumbersPage(msg.chat.id, 0);
 });
 
 /* ================= CALLBACKS ================= */
@@ -145,7 +178,17 @@ bot.on("callback_query", (query) => {
   const data = query.data;
 
   const records = loadRecords();
+/* ===== PAGINATION ===== */
+if (data.startsWith("page_")) {
 
+  const page = parseInt(data.split("_")[1]);
+
+  showNumbersPage(chatId, page);
+
+  bot.answerCallbackQuery(query.id);
+
+  return;
+}
   /* ===== BUY ===== */
   if (data.startsWith("buy_")) {
 
